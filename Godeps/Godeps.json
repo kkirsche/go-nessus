@@ -1,0 +1,15 @@
+{
+	"ImportPath": "github.com/kkirsche/go-nessus",
+	"GoVersion": "go1.5.1",
+	"Deps": [
+		{
+			"ImportPath": "github.com/parnurzeal/gorequest",
+			"Comment": "v0.2.11",
+			"Rev": "8fe8e16b3c50b6cc37399ee385b15f62a20bf584"
+		},
+		{
+			"ImportPath": "golang.org/x/net/publicsuffix",
+			"Rev": "cd8c2701a5e10f044db915e65eac68f738399d22"
+		}
+	]
+}
