@@ -1,4 +1,4 @@
-package nessus
+package go_nessus
 
 import (
 	"encoding/json" //For converting structs to JSON

@@ -1,4 +1,4 @@
-package nessus
+package go_nessus
 
 type CreateScanResponse struct {
 	Scan struct {

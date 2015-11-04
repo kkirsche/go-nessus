@@ -1,4 +1,4 @@
-package nessus
+package go_nessus
 
 import (
 	"fmt"

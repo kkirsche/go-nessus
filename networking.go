@@ -1,4 +1,4 @@
-package nessus
+package go_nessus
 
 import (
 	"crypto/tls" // To disable SSL verification

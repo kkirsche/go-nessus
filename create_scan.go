@@ -1,1 +1,1 @@
-package nessus
+package go_nessus
