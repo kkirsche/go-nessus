@@ -1,4 +1,4 @@
-package go_nessus
+package gonessus
 
 import (
 	"crypto/tls" // To disable SSL verification
@@ -7,7 +7,7 @@ import (
 	"log"
 )
 
-func (nessus Nessus) performPostWithArgs(url string, opts string,
+func (nessus Nessus) PerformPostWithArgs(url string, opts string,
 	str_ch chan string) {
 	request := gorequest.New().TLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 	resp, body, errs := request.Post(
@@ -26,7 +26,7 @@ func (nessus Nessus) performPostWithArgs(url string, opts string,
 	str_ch <- string(body)
 }
 
-func (nessus Nessus) performPost(url string, channel chan string) {
+func (nessus Nessus) PerformPost(url string, channel chan string) {
 	request := gorequest.New().TLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 	resp, body, errs := request.Post(
 		fmt.Sprintf("https://%s:%s/%s", nessus.Ip, nessus.Port, url)).
