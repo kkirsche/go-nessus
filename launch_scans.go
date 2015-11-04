@@ -6,7 +6,7 @@ import (
 	"log"           // For logging
 )
 
-func (nessus Nessus) AsyncLaunchCreated(new_scan_ch chan CreateScanResponse,
+func (nessus *Nessus) AsyncLaunchCreated(new_scan_ch chan CreateScanResponse,
 	scan_id_ch chan int, launched_scan_ch chan LaunchScanResponse) {
 
 	launched_ch := make(chan string)
@@ -32,7 +32,7 @@ func (nessus Nessus) AsyncLaunchCreated(new_scan_ch chan CreateScanResponse,
 	}
 }
 
-func (nessus Nessus) LaunchCreated(scan CreateScanResponse, scan_id int) (int, LaunchScanResponse) {
+func (nessus *Nessus) LaunchCreated(scan CreateScanResponse, scan_id int) (int, LaunchScanResponse) {
 	url := fmt.Sprintf("scans/%d/launch", scan.Scan.ID)
 
 	log.Print("[INFO] ", "Launching scan with URL: ", "https://", nessus.Ip, ":", nessus.Port, "/", url)

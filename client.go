@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-func (nessus Nessus) MakeClient(host, port, accessKey, secretKey string) Nessus {
+func (nessus *Nessus) MakeClient(host, port, accessKey, secretKey string) Nessus {
 	return Nessus{
 		Ip:        fmt.Sprintf("%s", host),
 		Port:      fmt.Sprintf("%s", port),
