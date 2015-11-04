@@ -3,6 +3,10 @@
 	"GoVersion": "go1.5.1",
 	"Deps": [
 		{
+			"ImportPath": "github.com/mxk/go-sqlite/sqlite3",
+			"Rev": "167da9432e1f4602e95ea67b67051cfa34412e3f"
+		},
+		{
 			"ImportPath": "github.com/parnurzeal/gorequest",
 			"Comment": "v0.2.11",
 			"Rev": "8fe8e16b3c50b6cc37399ee385b15f62a20bf584"

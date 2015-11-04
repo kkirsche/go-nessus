@@ -1,10 +1,10 @@
 package gonessus
 
 import (
-	"encoding/json"                    //For converting structs to JSON
-	"fmt"                              // For debugging purposes
-	"github.com/mxk/go-sqlite/sqlite3" // SQLite3 Database Communications
-	"log"                              // For logging
+	"encoding/json"                                                                        //For converting structs to JSON
+	"fmt"                                                                                  // For debugging purposes
+	"github.com/kkirsche/go-nessus/Godeps/_workspace/src/github.com/mxk/go-sqlite/sqlite3" // SQLite3 Database Communications
+	"log"                                                                                  // For logging
 )
 
 func (nessus *Nessus) AsyncLaunchCreated(new_scan_ch chan CreateScanResponse,

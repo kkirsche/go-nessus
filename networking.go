@@ -3,7 +3,7 @@ package gonessus
 import (
 	"crypto/tls" // To disable SSL verification
 	"fmt"
-	"github.com/parnurzeal/gorequest" // For HTTP requests with JSON
+	"github.com/kkirsche/go-nessus/Godeps/_workspace/src/github.com/parnurzeal/gorequest" // For HTTP requests with JSON
 	"log"
 )
 
