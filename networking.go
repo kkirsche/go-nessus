@@ -26,7 +26,7 @@ func (nessus Nessus) performPostWithArgs(url string, opts string,
 	str_ch <- string(body)
 }
 
-func (nessus Nessus) performPost(url string, channel chan string) (string, string) {
+func (nessus Nessus) performPost(url string, channel chan string) {
 	request := gorequest.New().TLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 	resp, body, errs := request.Post(
 		fmt.Sprintf("https://%s:%s/%s", nessus.Ip, nessus.Port, url)).
@@ -40,5 +40,6 @@ func (nessus Nessus) performPost(url string, channel chan string) (string, strin
 		}
 	}
 
-	return resp.Status, string(body)
+	channel <- resp.Status
+	channel <- string(body)
 }
