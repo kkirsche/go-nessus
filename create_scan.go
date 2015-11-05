@@ -1,8 +1,9 @@
-package gonessus
+package goNessus
 
 import (
 	"encoding/json"
 	"log"
+	"os"
 )
 
 // Builds the JSON object to send to Nessus when creating a scan.
@@ -37,6 +38,7 @@ func (nessus *Nessus) BuildCreateScanJson(json_ch chan string, name string, desc
 	if err != nil {
 		log.Fatal(err)
 		panic(err)
+		os.Exit(1)
 	}
 	json_ch <- string(marshalled_scan)
 }
@@ -64,5 +66,6 @@ func (nessus *Nessus) CreateScan(json_ch chan string, new_scan_ch chan CreateSca
 	default:
 		log.Fatal("[FATAL]", "Received an error", status, body)
 		panic(body)
+		os.Exit(1)
 	}
 }

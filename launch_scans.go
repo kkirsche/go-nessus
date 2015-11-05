@@ -1,10 +1,11 @@
-package gonessus
+package goNessus
 
 import (
 	"encoding/json"                                                                        //For converting structs to JSON
 	"fmt"                                                                                  // For debugging purposes
 	"github.com/kkirsche/go-nessus/Godeps/_workspace/src/github.com/mxk/go-sqlite/sqlite3" // SQLite3 Database Communications
 	"log"                                                                                  // For logging
+	"os"
 )
 
 func (nessus *Nessus) AsyncLaunchCreated(new_scan_ch chan CreateScanResponse,
@@ -30,6 +31,7 @@ func (nessus *Nessus) AsyncLaunchCreated(new_scan_ch chan CreateScanResponse,
 	default:
 		log.Fatal("[FATAL]", "Received an error", status, body)
 		panic(body)
+		os.Exit(1)
 	}
 }
 
@@ -52,6 +54,7 @@ func (nessus *Nessus) LaunchCreated(scan CreateScanResponse, scan_id int) (int, 
 	default:
 		log.Fatal("[FATAL]", "Received an error", status, body)
 		panic(body)
+		os.Exit(1)
 	}
 	return 0, LaunchScanResponse{}
 }

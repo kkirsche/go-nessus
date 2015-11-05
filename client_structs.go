@@ -1,4 +1,4 @@
-package gonessus
+package goNessus
 
 type Nessus struct {
 	Ip        string
