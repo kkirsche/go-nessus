@@ -23,9 +23,6 @@ func (nessus Nessus) PerformGet(url string, str_ch chan string) {
 		}
 	}
 
-	log.Print(resp.Status)
-	log.Print(string(body))
-
 	str_ch <- resp.Status
 	str_ch <- string(body)
 }
