@@ -79,7 +79,7 @@ func processLine(line string, request_id_ch chan string,
 	methodRegexp := regexp.MustCompile(`method:.*(?P<Method>\w+)`)
 	method := methodRegexp.FindString(line)
 
-	ipRegexp := regexp.MustCompile(`(?P<Ip>(\d{1,3}\.){3}(?P<Ip>(\d{1,3})))`)
+	ipRegexp := regexp.MustCompile(`(\d{1,3}\.){3}(\d{1,3})`)
 	ip := ipRegexp.FindString(line)
 
 	if requestid != "" {
