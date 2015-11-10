@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kkirsche/go-nessus/Godeps/_workspace/src/github.com/mxk/go-sqlite/sqlite3" // SQLite3 Database Communications
+	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -59,10 +60,7 @@ func (nessus *Nessus) BuildCreateScanJson(target_scan_ch chan *TargetScan,
 			Settings: settings,
 		}
 		marshalled_scan, err := json.Marshal(new_scan)
-		if err != nil {
-			log.Print("[ERROR] ", err)
-			os.Exit(1)
-		}
+		checkErr(err)
 		json_ch <- string(marshalled_scan)
 	}
 }
