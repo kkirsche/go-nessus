@@ -44,6 +44,7 @@ func (nessus Nessus) PerformPostWithArgs(url string, opts string,
 			os.Exit(1)
 		}
 	}
+
 	str_ch <- resp.Status
 	str_ch <- string(body)
 }
