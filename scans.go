@@ -200,7 +200,7 @@ func (nessus *Nessus) DownloadScan(scan_id string,
 	export_scan_ch chan ExportScanResponse, scan_result_ch chan string) {
 
 	scan_file_id := <-export_scan_ch
-	log.Print("[INFO] ", fmt.Sprintf("Downloading scan %s with file id %s.", scan_id, scan_file_id))
+	log.Print("[INFO] ", fmt.Sprintf("Downloading scan %s with file id %d.", scan_id, scan_file_id.File))
 	url := fmt.Sprintf("scans/%s/export/%d/download", scan_id, scan_file_id.File)
 	response_ch := make(chan string, 10)
 	nessus.PerformGet(url, response_ch)
@@ -214,4 +214,15 @@ func (nessus *Nessus) DownloadScan(scan_id string,
 		log.Fatal("[FATAL]", "Received an error", status, csv_body)
 		os.Exit(1)
 	}
+}
+
+// TODO: Change the `scan_id string` to `request_id string` so that we consistently use the request id not the scan id
+func (nessus *Nessus) SaveDownloadedScan(scan_id string, path string, scan_result_ch chan string, file_ch chan bool) {
+	downloaded_scan := []byte(<-scan_result_ch)
+	filename := fmt.Sprintf("Scan%sResults.csv", scan_id)
+	full_path := fmt.Sprintf("%s/%s", path, filename)
+	err := ioutil.WriteFile(full_path, downloaded_scan, 0644)
+	checkErr(err)
+
+	file_ch <- true
 }
