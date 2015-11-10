@@ -2,4 +2,4 @@
 Nessus 6 API Client written in Golang
 
 TODO:
-- [ ] Refactor from individual file per method to API category
+- [X] Refactor from individual files per scan method to general `scans.go` category
