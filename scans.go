@@ -60,7 +60,7 @@ func (nessus *Nessus) BuildCreateScanJson(target_scan_ch chan *TargetScan,
 			Settings: settings,
 		}
 		marshalled_scan, err := json.Marshal(new_scan)
-		checkErr(err)
+		CheckErr(err)
 		json_ch <- string(marshalled_scan)
 	}
 }
@@ -222,7 +222,7 @@ func (nessus *Nessus) SaveDownloadedScan(scan_id string, path string, scan_resul
 	filename := fmt.Sprintf("Scan%sResults.csv", scan_id)
 	full_path := fmt.Sprintf("%s/%s", path, filename)
 	err := ioutil.WriteFile(full_path, downloaded_scan, 0644)
-	checkErr(err)
+	CheckErr(err)
 
 	file_ch <- true
 }
