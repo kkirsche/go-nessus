@@ -6,7 +6,6 @@ import (
 
 func CheckErr(e error) {
 	if e != nil {
-		log.Print("[FATAL] ", "Received an error ", e, ".")
-		panic(e)
+		log.Panic("[FATAL] ", "Received an error ", e, ".")
 	}
 }

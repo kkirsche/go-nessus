@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/kkirsche/go-nessus/Godeps/_workspace/src/github.com/parnurzeal/gorequest" // For HTTP requests with JSON
 	"log"
-	"os"
 )
 
 func (nessus Nessus) PerformGet(url string, str_ch chan string) {
@@ -17,9 +16,7 @@ func (nessus Nessus) PerformGet(url string, str_ch chan string) {
 
 	for _, err := range errs {
 		if err != nil {
-			log.Fatal("[FATAL]", err)
-			panic(err)
-			os.Exit(1)
+			log.Panic("[FATAL] ", err)
 		}
 	}
 
@@ -39,9 +36,7 @@ func (nessus Nessus) PerformPostWithArgs(url string, opts string,
 
 	for _, err := range errs {
 		if err != nil {
-			log.Fatal("[FATAL]", err)
-			panic(err)
-			os.Exit(1)
+			log.Panic("[FATAL] ", err)
 		}
 	}
 
@@ -58,9 +53,7 @@ func (nessus Nessus) PerformPost(url string, channel chan string) {
 
 	for _, err := range errs {
 		if err != nil {
-			log.Fatal(err)
-			panic(err)
-			os.Exit(1)
+			log.Panic("[FATAL] ", err)
 		}
 	}
 

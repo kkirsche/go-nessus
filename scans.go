@@ -6,7 +6,6 @@ import (
 	"github.com/kkirsche/go-nessus/Godeps/_workspace/src/github.com/mxk/go-sqlite/sqlite3" // SQLite3 Database Communications
 	"io/ioutil"
 	"log"
-	"os"
 	"strings"
 )
 
@@ -16,8 +15,8 @@ import (
 // @param description [string] The description of the scan
 // @param policy_id [string] The policy which should be used to create the custom scan
 // @param text_targets [string] The IP Addresses which should be scanned
-func (nessus *Nessus) BuildCreateScanJson(target_scan_ch chan *TargetScan,
-	json_ch chan string, num_of_files int) {
+func (nessus *Nessus) AsyncBuildCreateScanJson(target_scan_ch chan *TargetScan,
+	json_ch chan string, filename_ch chan string, num_of_files int) {
 
 	for i := 0; i < num_of_files; i++ {
 		log.Print("[INFO] ", "Creating create scan option object")
@@ -62,6 +61,7 @@ func (nessus *Nessus) BuildCreateScanJson(target_scan_ch chan *TargetScan,
 		marshalled_scan, err := json.Marshal(new_scan)
 		CheckErr(err)
 		json_ch <- string(marshalled_scan)
+		filename_ch <- string(targetScan.FileName)
 	}
 }
 
@@ -69,7 +69,7 @@ func (nessus *Nessus) BuildCreateScanJson(target_scan_ch chan *TargetScan,
 //
 // @param nessus [Nessus] The Nessus client struct
 // @param json_ch [chan string] The channel that we will receive JSON create opts on
-func (nessus *Nessus) CreateScan(json_ch chan string, new_scan_ch chan CreateScanResponse, num_of_files int) {
+func (nessus *Nessus) AsyncCreateScan(json_ch chan string, new_scan_ch chan CreateScanResponse, num_of_files int) {
 
 	for i := 0; i < num_of_files; i++ {
 		string_chan := make(chan string)
@@ -87,10 +87,11 @@ func (nessus *Nessus) CreateScan(json_ch chan string, new_scan_ch chan CreateSca
 				json.Unmarshal(jsonSrc, &jsonResponse)
 				new_scan_ch <- jsonResponse
 			}
+		case "401 Authorization required":
+			log.Print("[ERROR] ", "Failed to create scan in Nessus. The credentials provided are not authorized to create scans.")
+			new_scan_ch <- CreateScanResponse{}
 		default:
-			log.Fatal("[FATAL]", "Received an error", status, body)
-			panic(body)
-			os.Exit(1)
+			log.Panic("[FATAL] ", "Received an error", status, body)
 		}
 	}
 }
@@ -98,28 +99,34 @@ func (nessus *Nessus) CreateScan(json_ch chan string, new_scan_ch chan CreateSca
 func (nessus *Nessus) AsyncLaunchCreated(new_scan_ch chan CreateScanResponse,
 	scan_id_ch chan int, launched_scan_ch chan LaunchScanResponse, num_of_files int) {
 
+	emptyCreateScanStruct := CreateScanResponse{}
 	for i := 0; i < num_of_files; i++ {
 		launched_ch := make(chan string)
 		scan := <-new_scan_ch
-		url := fmt.Sprintf("scans/%d/launch", scan.Scan.ID)
+		if scan != emptyCreateScanStruct {
+			url := fmt.Sprintf("scans/%d/launch", scan.Scan.ID)
 
-		log.Print("[INFO] ", "Launching scan with URL: ", "https://", nessus.Ip, ":", nessus.Port, "/", url)
-		go nessus.PerformPost(url, launched_ch)
-		status, body := <-launched_ch, <-launched_ch
-		switch status {
-		case "200 OK":
-			if status == "200 OK" {
-				log.Print("[INFO] ", "Processing launch scan response.")
-				jsonSrc := []byte(body)
-				var jsonResponse LaunchScanResponse
-				json.Unmarshal(jsonSrc, &jsonResponse)
-				scan_id_ch <- scan.Scan.ID
-				launched_scan_ch <- jsonResponse
+			log.Print("[INFO] ", "Launching scan with URL: ", "https://", nessus.Ip, ":", nessus.Port, "/", url)
+			go nessus.PerformPost(url, launched_ch)
+			status, body := <-launched_ch, <-launched_ch
+			switch status {
+			case "200 OK":
+				if status == "200 OK" {
+					log.Print("[INFO] ", "Processing launch scan response.")
+					jsonSrc := []byte(body)
+					var jsonResponse LaunchScanResponse
+					json.Unmarshal(jsonSrc, &jsonResponse)
+					scan_id_ch <- scan.Scan.ID
+					launched_scan_ch <- jsonResponse
+				}
+			default:
+				log.Print("[ERROR] ", "Failed to launch scan in Nessus. Received the following status from the server: ", status)
+				scan_id_ch <- 0
+				launched_scan_ch <- LaunchScanResponse{}
 			}
-		default:
-			log.Fatal("[FATAL]", "Received an error", status, body)
-			panic(body)
-			os.Exit(1)
+		} else {
+			scan_id_ch <- 0
+			launched_scan_ch <- LaunchScanResponse{}
 		}
 	}
 }
@@ -141,40 +148,43 @@ func (nessus *Nessus) LaunchCreated(scan CreateScanResponse, scan_id int) (int, 
 			return scan.Scan.ID, jsonResponse
 		}
 	default:
-		log.Fatal("[FATAL]", "Received an error", status, body)
-		panic(body)
-		os.Exit(1)
+		log.Panic("[FATAL] ", "Received an error", status, body)
 	}
 	return 0, LaunchScanResponse{}
 }
 
-func (nessus *Nessus) SaveLaunchedScan(database_name string, scan_id_chan chan int,
-	launched_scan_ch chan LaunchScanResponse, num_of_files int) {
+func (nessus *Nessus) AsyncSaveLaunchedScan(database_name string, scan_id_chan chan int,
+	launched_scan_ch chan LaunchScanResponse, filename_ch chan string, num_of_files int) {
 	log.Print("[INFO] ", "Connecting to SQLite3 database (launched_nessus_scans.db)")
 	conn, err := sqlite3.Open(database_name)
 	if err != nil {
-		log.Fatal("[FATAL]", "Couldn't connect to the database.", err)
+		log.Panic("[FATAL] ", "Couldn't connect to the database.", err)
 	}
 
 	log.Print("[INFO] ", "Creating active_scans table if it doesn't exist.")
 	go conn.Exec("CREATE TABLE IF NOT EXISTS active_scans (request_id bigint, method varchar(200), scan_uuid varchar(250), scan_id integer);")
 
+	emptyLaunchedStruct := LaunchScanResponse{}
 	for i := 0; i < num_of_files; i++ {
-		log.Print("[INFO] ", "Waiting for launched scan...")
 		id := <-scan_id_chan
 		launched_scan := <-launched_scan_ch
+		filename := <-filename_ch
 
-		args := sqlite3.NamedArgs{"$a": "1", "$b": "default", "$c": launched_scan.ScanUUID, "$d": id}
-		log.Print("[INFO] ", "Saving the launched scan into SQLite3 database.")
-		log.Print("[SQL] ", fmt.Sprintf("INSERT INTO active_scans (request_id, method, scan_uuid, scan_id) VALUES (%s, %s, %s, %d)", "1", "default", launched_scan.ScanUUID, id))
-		go conn.Exec("INSERT INTO active_scans (request_id, method, scan_uuid, scan_id) VALUES ($a, $b, $c, $d)", args)
-		log.Print("[INFO] ", "Launched scan saved! ")
+		log.Print(filename)
+
+		if id != 0 && launched_scan != emptyLaunchedStruct {
+			args := sqlite3.NamedArgs{"$a": "1", "$b": "default", "$c": launched_scan.ScanUUID, "$d": id}
+			log.Print("[INFO] ", "Saving the launched scan into SQLite3 database.")
+			log.Print("[SQL] ", fmt.Sprintf("INSERT INTO active_scans (request_id, method, scan_uuid, scan_id) VALUES (%s, %s, %s, %d)", "1", "default", launched_scan.ScanUUID, id))
+			go conn.Exec("INSERT INTO active_scans (request_id, method, scan_uuid, scan_id) VALUES ($a, $b, $c, $d)", args)
+			log.Print("[INFO] ", "Launched scan saved! ")
+		}
 	}
 
 	log.Print("Exiting...")
 }
 
-func (nessus *Nessus) ExportScan(scan_id string, export_scan_ch chan ExportScanResponse) {
+func (nessus *Nessus) AsyncExportScan(scan_id string, export_scan_ch chan ExportScanResponse) {
 	log.Print("[INFO] ", fmt.Sprintf("Exporting scan %s.", scan_id))
 	url := fmt.Sprintf("scans/%s/export", scan_id)
 	opts := "{\"format\":\"csv\"}"
@@ -191,12 +201,11 @@ func (nessus *Nessus) ExportScan(scan_id string, export_scan_ch chan ExportScanR
 			export_scan_ch <- jsonResponse
 		}
 	default:
-		log.Fatal("[FATAL]", "Received an error", status, body)
-		os.Exit(1)
+		log.Panic("[FATAL] ", "Received an error", status, body)
 	}
 }
 
-func (nessus *Nessus) DownloadScan(scan_id string,
+func (nessus *Nessus) AsyncDownloadScan(scan_id string,
 	export_scan_ch chan ExportScanResponse, scan_result_ch chan string) {
 
 	scan_file_id := <-export_scan_ch
@@ -211,13 +220,12 @@ func (nessus *Nessus) DownloadScan(scan_id string,
 			scan_result_ch <- csv_body
 		}
 	default:
-		log.Fatal("[FATAL]", "Received an error", status, csv_body)
-		os.Exit(1)
+		log.Panic("[FATAL] ", "Received an error", status, csv_body)
 	}
 }
 
 // TODO: Change the `scan_id string` to `request_id string` so that we consistently use the request id not the scan id
-func (nessus *Nessus) SaveDownloadedScan(scan_id string, path string, scan_result_ch chan string, file_ch chan bool) {
+func (nessus *Nessus) AsyncSaveDownloadedScan(scan_id string, path string, scan_result_ch chan string, file_ch chan bool) {
 	downloaded_scan := []byte(<-scan_result_ch)
 	filename := fmt.Sprintf("Scan%sResults.csv", scan_id)
 	full_path := fmt.Sprintf("%s/%s", path, filename)

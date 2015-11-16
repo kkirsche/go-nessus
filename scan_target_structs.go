@@ -8,5 +8,6 @@ type TargetFiles struct {
 type TargetScan struct {
 	RequestID string
 	Method    string
+	FileName  string
 	IPs       []string
 }

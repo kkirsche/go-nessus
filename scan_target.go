@@ -7,23 +7,33 @@ import (
 	"os"            // Used to interact with the host operating system
 	"path/filepath" // Use to work with filename paths
 	"regexp"        // Regular expressions!
+	"runtime"       // Runtime allows us to detect what OS we are running on
+	"strings"       // Strings allows us to split strings apart
 )
 
 func (nessus *Nessus) TargetFilesOnDisk(base_path string) *TargetFiles {
 	path_glob := fmt.Sprintf("%s/*.txt", base_path)
 	str_arr, err := filepath.Glob(path_glob)
 	if err != nil {
-		fmt.Println(err)
-		panic(err)
+		log.Panic(err)
 	}
 	return &TargetFiles{Filepaths: str_arr, FileNum: len(str_arr)}
 }
 
-func (nessus *Nessus) ProcessTargetFiles(targetFiles *TargetFiles, target_scan_ch chan *TargetScan) {
+func (nessus *Nessus) ProcessTargetFiles(fileLocations FileLocations, targetFiles *TargetFiles, target_scan_ch chan *TargetScan) {
 	processed_ch := make(chan *TargetScan)
 	go func() {
 		for _, path := range targetFiles.Filepaths {
-			go processFile(path, processed_ch)
+			var split_path []string
+			if runtime.GOOS == "windows" {
+				split_path = strings.Split(path, "\\")
+			} else {
+				split_path = strings.Split(path, "/")
+			}
+
+			fileName := split_path[len(split_path)-1] // ::: the filename from the path
+
+			go processFile(path, fileName, fileLocations, processed_ch)
 		}
 	}()
 
@@ -35,10 +45,10 @@ func (nessus *Nessus) ProcessTargetFiles(targetFiles *TargetFiles, target_scan_c
 	}()
 }
 
-func processFile(path string, processed_ch chan *TargetScan) {
+func processFile(path string, fileName string, fileLocations FileLocations, processed_ch chan *TargetScan) {
 	file, err := os.Open(path)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	defer file.Close()
 
@@ -54,7 +64,7 @@ func processFile(path string, processed_ch chan *TargetScan) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 
 	requestid, method, ips := <-request_id_ch, <-method_ch, []string{<-ips_ch}
@@ -66,8 +76,12 @@ func processFile(path string, processed_ch chan *TargetScan) {
 	processed_ch <- &TargetScan{
 		RequestID: requestid,
 		Method:    method,
+		FileName:  fileName,
 		IPs:       ips,
 	}
+
+	CopyTargetFileToArchiveDirectory(fileLocations, fileName)
+	MoveTargetFileToTempDirectory(fileLocations, fileName)
 }
 
 func processLine(line string, request_id_ch chan string,
