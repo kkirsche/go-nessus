@@ -1,9 +1,12 @@
 package goNessus
 
 import (
-	"fmt"     // For debugging purposes
-	"os"      // For retrieving the PID
-	"runtime" // For retrieving the current OS runtime (e.g. Linux, Windows or Darwin)
+	"database/sql"                                                                           // For using the SQLite3 Library
+	"fmt"                                                                                    // For debugging purposes
+	_ "github.com/kkirsche/go-nessus/Godeps/_workspace/src/github.com/mxk/go-sqlite/sqlite3" // SQLite3 Database Communications
+	"log"                                                                                    // For logging
+	"os"                                                                                     // For retrieving the PID
+	"runtime"                                                                                // For retrieving the current OS runtime (e.g. Linux, Windows or Darwin)
 )
 
 func ConstructFileLocations() FileLocations {
@@ -52,7 +55,7 @@ func CreateNecessaryDirectories(fileLocations FileLocations) {
 
 func MoveTargetFileToTempDirectory(fileLocations FileLocations, targetFileName string) {
 	old_path := fmt.Sprintf("%s/%s", fileLocations.Incoming_directory, targetFileName)
-	new_path := fmt.Sprintf("%s/%s", fileLocations.Incoming_directory, targetFileName)
+	new_path := fmt.Sprintf("%s/%s", fileLocations.Temp_directory, targetFileName)
 	err := os.Rename(old_path, new_path)
 	CheckErr(err)
 }
@@ -81,21 +84,33 @@ func ProcessIncomingFilesDir(fileLocations FileLocations, accessKey string, secr
 	go nessus.AsyncBuildCreateScanJson(target_scan_ch, json_ch, filename_ch, targetFiles.FileNum)
 	go nessus.AsyncCreateScan(json_ch, new_scan_ch, targetFiles.FileNum)
 	go nessus.AsyncLaunchCreated(new_scan_ch, scan_id_ch, launched_scan_ch, targetFiles.FileNum)
-	nessus.AsyncSaveLaunchedScan(sqlite_db, scan_id_ch, launched_scan_ch, filename_ch, targetFiles.FileNum)
+	nessus.AsyncSaveLaunchedScan(sqlite_db, scan_id_ch, launched_scan_ch, filename_ch, fileLocations, targetFiles.FileNum)
 }
 
 func RetreieveLaunchedScanResults(fileLocations FileLocations, accessKey string, secretKey string, sqlite_db string) {
 	export_ch := make(chan ExportScanResponse, 200)
 	scan_result_ch := make(chan string, 200)
 	file_ch := make(chan bool, 200)
-	scan_id := "292"
 
 	CreateNecessaryDirectories(fileLocations)
 	defer os.RemoveAll(fileLocations.Temp_directory)
 
 	nessus := MakeClient("localhost", "8834", accessKey, secretKey)
-	go nessus.AsyncExportScan(scan_id, export_ch)
-	go nessus.AsyncDownloadScan(scan_id, export_ch, scan_result_ch)
-	go nessus.AsyncSaveDownloadedScan(scan_id, fileLocations.Results_directory, scan_result_ch, file_ch)
-	<-file_ch
+	message := fmt.Sprintf("Connecting to SQLite3 database (%s)", sqlite_db)
+	log.Print("[INFO] ", message)
+	conn, err := sql.Open("sqlite3", sqlite_db)
+	CheckErr(err)
+	defer conn.Close()
+
+	rows, err := conn.Query("SELECT * FROM active_scans ORDER BY request_id DESC;")
+	CheckErr(err)
+	defer rows.Close()
+	for rows.Next() {
+		var row DatabaseRow
+		rows.Scan(&row.request_id, &row.method, &row.scan_uuid, &row.scan_id)
+		go nessus.AsyncExportScan(row.scan_id, export_ch)
+		go nessus.AsyncDownloadScan(row.scan_id, export_ch, scan_result_ch)
+		go nessus.AsyncSaveDownloadedScan(row.scan_id, fileLocations.Results_directory, scan_result_ch, file_ch)
+		<-file_ch
+	}
 }
