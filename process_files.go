@@ -89,7 +89,9 @@ func ProcessIncomingFilesDir(fileLocations FileLocations, accessKey string, secr
 
 func RetreieveLaunchedScanResults(fileLocations FileLocations, accessKey string, secretKey string, sqlite_db string) {
 	export_ch := make(chan ExportScanResponse, 200)
+	file_exported_ch := make(chan ExportScanResponse, 200)
 	scan_result_ch := make(chan string, 200)
+	scan_id_ch := make(chan string, 200)
 	file_ch := make(chan bool, 200)
 
 	CreateNecessaryDirectories(fileLocations)
@@ -105,12 +107,18 @@ func RetreieveLaunchedScanResults(fileLocations FileLocations, accessKey string,
 	rows, err := conn.Query("SELECT * FROM active_scans ORDER BY request_id DESC;")
 	CheckErr(err)
 	defer rows.Close()
+	numRows := 0
 	for rows.Next() {
 		var row DatabaseRow
 		rows.Scan(&row.request_id, &row.method, &row.scan_uuid, &row.scan_id)
 		go nessus.AsyncExportScan(row.scan_id, export_ch)
-		go nessus.AsyncDownloadScan(row.scan_id, export_ch, scan_result_ch)
-		go nessus.AsyncSaveDownloadedScan(row.scan_id, fileLocations.Results_directory, scan_result_ch, file_ch)
+		go nessus.AsyncWaitForScan(row.scan_id, export_ch, file_exported_ch)
+		go nessus.AsyncDownloadScan(row.scan_id, file_exported_ch, scan_result_ch, scan_id_ch)
+		numRows++
+	}
+
+	for i := 0; i < numRows; i++ {
+		nessus.AsyncSaveDownloadedScan(fileLocations.Results_directory, scan_result_ch, scan_id_ch, file_ch)
 		<-file_ch
 	}
 }

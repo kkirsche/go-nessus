@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 )
 
 // Builds the JSON object to send to Nessus when creating a scan.
@@ -192,7 +193,7 @@ func (nessus *Nessus) AsyncSaveLaunchedScan(database_name string, scan_id_chan c
 }
 
 func (nessus *Nessus) AsyncExportScan(scan_id string, export_scan_ch chan ExportScanResponse) {
-	log.Print("[INFO] ", fmt.Sprintf("Exporting scan %s.", scan_id))
+	log.Print("[INFO] ", fmt.Sprintf("Attempting to export scan %s.", scan_id))
 	url := fmt.Sprintf("scans/%s/export", scan_id)
 	opts := "{\"format\":\"csv\"}"
 	response_ch := make(chan string, 10)
@@ -200,44 +201,88 @@ func (nessus *Nessus) AsyncExportScan(scan_id string, export_scan_ch chan Export
 	status, body := <-response_ch, <-response_ch
 	switch status {
 	case "200 OK":
-		if status == "200 OK" {
-			log.Print("[INFO] ", "Processing export scan response.")
-			jsonSrc := []byte(body)
-			var jsonResponse ExportScanResponse
-			json.Unmarshal(jsonSrc, &jsonResponse)
-			export_scan_ch <- jsonResponse
-		}
+		jsonSrc := []byte(body)
+		var jsonResponse ExportScanResponse
+		json.Unmarshal(jsonSrc, &jsonResponse)
+		export_scan_ch <- jsonResponse
+	case "404 File not found":
+		log.Printf("[INFO] Scan %s was not found. Skipping to the next file.", scan_id)
+		export_scan_ch <- ExportScanResponse{File: 0}
 	default:
 		log.Panic("[FATAL] ", "Received an error", status, body)
 	}
 }
 
-func (nessus *Nessus) AsyncDownloadScan(scan_id string,
-	export_scan_ch chan ExportScanResponse, scan_result_ch chan string) {
-
-	scan_file_id := <-export_scan_ch
-	log.Print("[INFO] ", fmt.Sprintf("Downloading scan %s with file id %d.", scan_id, scan_file_id.File))
-	url := fmt.Sprintf("scans/%s/export/%d/download", scan_id, scan_file_id.File)
+func IsScanReady(nessus *Nessus, url string) bool {
 	response_ch := make(chan string, 10)
 	nessus.PerformGet(url, response_ch)
-	status, csv_body := <-response_ch, <-response_ch
+	status, body := <-response_ch, <-response_ch
 	switch status {
 	case "200 OK":
-		if status == "200 OK" {
-			scan_result_ch <- csv_body
+		jsonSrc := []byte(body)
+		var jsonResponse ExportScanStatusResponse
+		json.Unmarshal(jsonSrc, &jsonResponse)
+		if jsonResponse.Status != "ready" {
+			return false
+		} else {
+			return true
 		}
+	case "404 File not found":
+		return false
 	default:
-		log.Panic("[FATAL] ", "Received an error", status, csv_body)
+		log.Panic("[FATAL] ", "Received an error", status, body)
+	}
+	return false
+}
+
+func (nessus *Nessus) AsyncWaitForScan(scan_id string, export_scan_ch chan ExportScanResponse,
+	file_exported_ch chan ExportScanResponse) {
+	exported_scan := <-export_scan_ch
+	if exported_scan.File != 0 {
+		log.Print("[INFO] ", fmt.Sprintf("Checking export scan status for Scan #%s with file ID %d.", scan_id, exported_scan.File))
+		url := fmt.Sprintf("scans/%s/export/%d/status", scan_id, exported_scan.File)
+		for !IsScanReady(nessus, url) {
+			time.Sleep(1000)
+		}
+		log.Print("[INFO] ", fmt.Sprintf("Scan #%s with file ID %d is ready to be downloaded.", scan_id, exported_scan.File))
+		file_exported_ch <- exported_scan
+	} else {
+		file_exported_ch <- exported_scan
+	}
+}
+
+func (nessus *Nessus) AsyncDownloadScan(scan_id string,
+	file_exported_ch chan ExportScanResponse, scan_result_ch chan string, scan_id_ch chan string) {
+
+	scan_file_id := <-file_exported_ch
+	if scan_file_id.File != 0 {
+		log.Print("[INFO] ", fmt.Sprintf("Downloading scan %s with file id %d.", scan_id, scan_file_id.File))
+		url := fmt.Sprintf("scans/%s/export/%d/download", scan_id, scan_file_id.File)
+		response_ch := make(chan string, 10)
+		nessus.PerformGet(url, response_ch)
+		status, csv_body := <-response_ch, <-response_ch
+		switch status {
+		case "200 OK":
+			if status == "200 OK" {
+				scan_result_ch <- csv_body
+				scan_id_ch <- scan_id
+			}
+		default:
+			log.Panic("[FATAL] ", "Received an error", status, csv_body)
+		}
+	} else {
+		scan_result_ch <- ""
 	}
 }
 
 // TODO: Change the `scan_id string` to `request_id string` so that we consistently use the request id not the scan id
-func (nessus *Nessus) AsyncSaveDownloadedScan(scan_id string, path string, scan_result_ch chan string, file_ch chan bool) {
-	downloaded_scan := []byte(<-scan_result_ch)
-	filename := fmt.Sprintf("Scan%sResults.csv", scan_id)
-	full_path := fmt.Sprintf("%s/%s", path, filename)
-	err := ioutil.WriteFile(full_path, downloaded_scan, 0644)
-	CheckErr(err)
-
+func (nessus *Nessus) AsyncSaveDownloadedScan(path string, scan_result_ch chan string, scan_id_ch chan string, file_ch chan bool) {
+	downloaded_scan := <-scan_result_ch
+	if downloaded_scan == "" {
+		filename := fmt.Sprintf("Scan%sResults.csv", <-scan_id_ch)
+		full_path := fmt.Sprintf("%s/%s", path, filename)
+		err := ioutil.WriteFile(full_path, []byte(downloaded_scan), 0644)
+		CheckErr(err)
+	}
 	file_ch <- true
 }
