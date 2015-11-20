@@ -278,11 +278,12 @@ func (nessus *Nessus) AsyncDownloadScan(scan_id string,
 // TODO: Change the `scan_id string` to `request_id string` so that we consistently use the request id not the scan id
 func (nessus *Nessus) AsyncSaveDownloadedScan(path string, scan_result_ch chan string, scan_id_ch chan string, file_ch chan bool) {
 	downloaded_scan := <-scan_result_ch
-	if downloaded_scan == "" {
+	if downloaded_scan != "" {
 		filename := fmt.Sprintf("Scan%sResults.csv", <-scan_id_ch)
 		full_path := fmt.Sprintf("%s/%s", path, filename)
 		err := ioutil.WriteFile(full_path, []byte(downloaded_scan), 0644)
 		CheckErr(err)
+		file_ch <- true
 	}
-	file_ch <- true
+	file_ch <- false
 }

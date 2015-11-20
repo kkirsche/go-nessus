@@ -117,8 +117,13 @@ func RetreieveLaunchedScanResults(fileLocations FileLocations, accessKey string,
 		numRows++
 	}
 
+	successfulScans := 0
 	for i := 0; i < numRows; i++ {
 		nessus.AsyncSaveDownloadedScan(fileLocations.Results_directory, scan_result_ch, scan_id_ch, file_ch)
-		<-file_ch
+		if <-file_ch {
+			successfulScans++
+		}
 	}
+
+	log.Printf("[INFO] Successfully downloaded %d of %d results.", successfulScans, numRows)
 }
