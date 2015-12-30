@@ -4,11 +4,20 @@ import (
 	"database/sql"                                                                           // For using the SQLite3 Library
 	"fmt"                                                                                    // For debugging purposes
 	_ "github.com/kkirsche/go-nessus/Godeps/_workspace/src/github.com/mxk/go-sqlite/sqlite3" // SQLite3 Database Communications
+	"github.com/kkirsche/go-scp"                                                             // Used to retrieve files over SSH channel
+	"golang.org/x/crypto/ssh"                                                                // For SSH client connections
 	"log"                                                                                    // For logging
 	"os"                                                                                     // For retrieving the PID
+	"regexp"                                                                                 // To determine all files in a path using Globs
 	"runtime"                                                                                // For retrieving the current OS runtime (e.g. Linux, Windows or Darwin)
+	"strings"                                                                                // To split strings on newlines
 )
 
+// Construct file locations of of scanner resources based on the operating system.
+//
+// Example:
+//
+// 	fileLocations := goNessus.ConstructFileLocations()
 func ConstructFileLocations() FileLocations {
 	if runtime.GOOS == "linux" {
 		fileLocations := FileLocations{Base_directory: "/opt/scanner"}
@@ -42,6 +51,8 @@ func ConstructFileLocations() FileLocations {
 	}
 }
 
+// Create any directories with 755 permissions from ConstructFileLocations which
+// do not exist.
 func CreateNecessaryDirectories(fileLocations FileLocations) {
 	err := os.MkdirAll(fileLocations.Temp_directory, 0755)
 	CheckErr(err)
@@ -53,6 +64,9 @@ func CreateNecessaryDirectories(fileLocations FileLocations) {
 	CheckErr(err)
 }
 
+// Moves target file to temporary directory as defined in ConstructFileLocations.
+// Target file is the file stating which type of scan will be used and what hosts
+// will be scanned.
 func MoveTargetFileToTempDirectory(fileLocations FileLocations, targetFileName string) {
 	old_path := fmt.Sprintf("%s/%s", fileLocations.Incoming_directory, targetFileName)
 	new_path := fmt.Sprintf("%s/%s", fileLocations.Temp_directory, targetFileName)
@@ -60,6 +74,9 @@ func MoveTargetFileToTempDirectory(fileLocations FileLocations, targetFileName s
 	CheckErr(err)
 }
 
+// Creates a copy of the target file and puts it in the archive directory as
+// definied in ConstructFileLocations. The target file is the file stating which
+// type of scan will be used and what hosts will be scanned.
 func CopyTargetFileToArchiveDirectory(fileLocations FileLocations, targetFileName string) {
 	old_path := fmt.Sprintf("%s/%s", fileLocations.Incoming_directory, targetFileName)
 	new_path := fmt.Sprintf("%s/%s", fileLocations.Archive_directory, targetFileName)
@@ -67,6 +84,10 @@ func CopyTargetFileToArchiveDirectory(fileLocations FileLocations, targetFileNam
 	CheckErr(err)
 }
 
+// Processes each target file in the incoming directory as defined by
+// ConstructFileLocations. This takes each file, parses it, creates a JSON
+// object to send to Nessus to create a scan, creates the scan, launches the scan,
+// and records the information about the scan in an SQLite database.
 func ProcessIncomingFilesDir(fileLocations FileLocations, accessKey string, secretKey string, sqlite_db string) {
 	target_scan_ch := make(chan *TargetScan, 200)
 	json_ch := make(chan string, 200)
@@ -87,6 +108,10 @@ func ProcessIncomingFilesDir(fileLocations FileLocations, accessKey string, secr
 	nessus.AsyncSaveLaunchedScan(sqlite_db, scan_id_ch, launched_scan_ch, filename_ch, fileLocations, targetFiles.FileNum)
 }
 
+// RetreieveLaunchedScanResults works through the SQLite database from
+// ProcessIncomingFilesDir, exports each scan, waits for the export to finish,
+// then downloads the scan and saves it to the results directory from
+// ConstructFileLocations
 func RetreieveLaunchedScanResults(fileLocations FileLocations, accessKey string, secretKey string, sqlite_db string) {
 	export_ch := make(chan ExportScanResponse, 200)
 	file_exported_ch := make(chan ExportScanResponse, 200)
@@ -126,4 +151,48 @@ func RetreieveLaunchedScanResults(fileLocations FileLocations, accessKey string,
 	}
 
 	log.Printf("[INFO] Successfully downloaded %d of %d results.", successfulScans, numRows)
+}
+
+// Connects to a remote scanner over SSH, creates a list of all available result
+// files, then SCP's each of them (*.csv) to the local machine.
+//
+// Example:
+//
+//	scpKeyFile := goScp.SshKeyfile{Path: "/Users/example/.ssh", Filename: "id_rsa.pub"}
+// 	scpCredentials := goScp.SshCredentials{Username: "example"}
+// 	scpRemoteMachine := goScp.RemoteMachine{Host: "192.168.0.1", Port: "8022"}
+//
+// 	client, err := goScp.Connect(scpKeyFile, scpCredentials, scpRemoteMachine, false)
+// 	if err != nil {
+// 		log.Fatal("Failed to connect: " + err.Error())
+// 	}
+//
+// 	remoteFilePath := "/opt/scanner/results"
+// 	localFilePath := "/Users/example/nessusResults"
+// 	goNessus.ScpRemoteResultsToLocal(client, remoteFilePath, localFilePath)
+func ScpRemoteResultsToLocal(client *ssh.Client, remoteFilePath string, localFilePath string) {
+	results, err := goScp.ExecuteCommand(client, "ls -1 "+remoteFilePath)
+	if err != nil {
+		log.Fatal("Error getting list of files")
+	}
+
+	filenameArray := strings.Split(results, "\n")
+
+	var matches []string
+	for _, file := range filenameArray {
+		match, err := regexp.MatchString(".+.csv", file)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if match {
+			matches = append(matches, file)
+		}
+	}
+
+	for _, file := range matches {
+		err = goScp.CopyRemoteFileToLocal(client, remoteFilePath, file, localFilePath, "")
+		if err != nil {
+			log.Fatal("Error copying file")
+		}
+	}
 }
