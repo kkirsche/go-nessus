@@ -1,5 +1,6 @@
 package goNessus
 
+// DatabaseRow is used to represent a single row in the SQLite3 database
 type DatabaseRow struct {
 	Request_id int
 	Method     string

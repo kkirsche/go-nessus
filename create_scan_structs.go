@@ -1,5 +1,7 @@
 package goNessus
 
+// CreateScanResponse maps to the JSON object returned by Nessus 6 when you
+// successfully create a new scan.
 type CreateScanResponse struct {
 	Scan struct {
 		ContainerID          int         `json:"container_id"`
@@ -32,6 +34,8 @@ type CreateScanResponse struct {
 	} `json:"scan"`
 }
 
+// CreateScanSettings is the sub-JSON structure used in CreateScan when
+// generating a new scan in Nessus 6.
 type CreateScanSettings struct {
 	Name         string `json:"name"`
 	Description  string `json:"description"`
@@ -46,6 +50,7 @@ type CreateScanSettings struct {
 	Emails       string `json:"emails"`
 }
 
+// CreateScan is the JSON object used to create a new scan in Nessus 6.
 type CreateScan struct {
 	Uuid     string             `json:"uuid"`
 	Settings CreateScanSettings `json:"settings"`
