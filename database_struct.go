@@ -1,8 +1,8 @@
 package goNessus
 
 type DatabaseRow struct {
-	request_id int
-	method     string
-	scan_uuid  string
-	scan_id    string
+	Request_id int
+	Method     string
+	Scan_uuid  string
+	Scan_id    string
 }

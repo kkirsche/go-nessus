@@ -1,4 +1,3 @@
-// Package goNessus provides a Golang based interface to Nessus 6
 package goNessus
 
 import (
@@ -136,10 +135,10 @@ func RetreieveLaunchedScanResults(fileLocations FileLocations, accessKey string,
 	numRows := 0
 	for rows.Next() {
 		var row DatabaseRow
-		rows.Scan(&row.request_id, &row.method, &row.scan_uuid, &row.scan_id)
-		go nessus.AsyncExportScan(row.scan_id, export_ch)
-		go nessus.AsyncWaitForScan(row.scan_id, export_ch, file_exported_ch)
-		go nessus.AsyncDownloadScan(row.scan_id, file_exported_ch, scan_result_ch, scan_id_ch)
+		rows.Scan(&row.Request_id, &row.Method, &row.Scan_uuid, &row.Scan_id)
+		go nessus.AsyncExportScan(row.Scan_id, export_ch)
+		go nessus.AsyncWaitForScan(row.Scan_id, export_ch, file_exported_ch)
+		go nessus.AsyncDownloadScan(row.Scan_id, file_exported_ch, scan_result_ch, scan_id_ch)
 		numRows++
 	}
 

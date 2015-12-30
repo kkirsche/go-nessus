@@ -1,4 +1,3 @@
-// Package goNessus provides a Golang based interface to Nessus 6
 package goNessus
 
 // Nessus struct is used to contain information about a Nessus scanner. This
