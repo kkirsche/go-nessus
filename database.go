@@ -5,11 +5,12 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"github.com/go-sql-driver/mysql"
+	_ "github.com/mattn/go-sqlite3"
 	"io/ioutil"
 	"log"
 )
 
-// Generates a secure or insecure database connection
+// Generates a secure or insecure TCP MySQL database connection on port 3306
 func ConnectToMySqlDatabase(username string, password string, database string, server string, INFO map[string]string, secure bool) *sql.DB {
 	if secure {
 		rootCertPool := x509.NewCertPool()
@@ -42,4 +43,13 @@ func ConnectToMySqlDatabase(username string, password string, database string, s
 		}
 		return db
 	}
+}
+
+// Generates a file connection to an SQLite3 database connection
+func ConnectToSqliteDatabase(sqlite_db string) *sql.DB {
+	db, err := sql.Open("sqlite3", "file:"+sqlite_db)
+	if err != nil {
+		log.Fatal("Couldn't connect to database: " + err.Error())
+	}
+	return db
 }

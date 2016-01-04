@@ -1,10 +1,8 @@
 package goNessus
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/kkirsche/go-nessus/Godeps/_workspace/src/github.com/mxk/go-sqlite/sqlite3" // SQLite3 Database Communications
 	"io/ioutil"
 	"log"
 	"os"
@@ -160,14 +158,11 @@ func (nessus *Nessus) AsyncSaveLaunchedScan(database_name string, scan_id_chan c
 	launched_scan_ch chan LaunchScanResponse, filename_ch chan string, fileLocations FileLocations, num_of_files int) {
 	message := fmt.Sprintf("Connecting to SQLite3 database (%s)", database_name)
 	log.Print("[INFO] ", message)
-	conn, err := sql.Open("sqlite3", database_name)
-	if err != nil {
-		log.Panic("[FATAL] ", "Couldn't connect to the database.", err)
-	}
-	defer conn.Close()
+	db := ConnectToSqliteDatabase(database_name)
+	defer db.Close()
 
 	log.Print("[INFO] ", "Creating active_scans table if it doesn't exist.")
-	go conn.Exec("CREATE TABLE IF NOT EXISTS active_scans (request_id bigint, method varchar(200), scan_uuid varchar(250), scan_id integer);")
+	go db.Exec("CREATE TABLE IF NOT EXISTS active_scans (request_id bigint, method varchar(200), scan_uuid varchar(250), scan_id integer);")
 
 	emptyLaunchedStruct := LaunchScanResponse{}
 	for i := 0; i < num_of_files; i++ {
@@ -175,15 +170,14 @@ func (nessus *Nessus) AsyncSaveLaunchedScan(database_name string, scan_id_chan c
 		launched_scan := <-launched_scan_ch
 
 		if id != 0 && launched_scan != emptyLaunchedStruct {
-			args := sqlite3.NamedArgs{"$a": "1", "$b": "default", "$c": launched_scan.ScanUUID, "$d": id}
 			log.Print("[INFO] ", "Saving the launched scan into SQLite3 database.")
 			log.Print("[SQL] ", fmt.Sprintf("INSERT INTO active_scans (request_id, method, scan_uuid, scan_id) VALUES (%s, %s, %s, %d)", "1", "default", launched_scan.ScanUUID, id))
-			go conn.Exec("INSERT INTO active_scans (request_id, method, scan_uuid, scan_id) VALUES ($a, $b, $c, $d)", args)
+			go db.Exec("INSERT INTO active_scans (request_id, method, scan_uuid, scan_id) VALUES ($a, $b, $c, $d)", "1", "default", launched_scan.ScanUUID, id)
 			log.Print("[INFO] ", "Launched scan saved! ")
 		}
 
 		filename := <-filename_ch
-		log.Print("[INFO] ", "Attempting to remove file %q from temporary directory.", filename)
+		log.Printf("[INFO] Attempting to remove file %s from temporary directory.", filename)
 		file_to_be_removed := fmt.Sprintf("%s/%s", fileLocations.Temp_directory, filename)
 		err := os.Remove(file_to_be_removed)
 		CheckErr(err)
