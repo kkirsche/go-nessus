@@ -1,16 +1,14 @@
 package goNessus
 
 import (
-	"database/sql"                                                                           // For using the SQLite3 Library
-	"fmt"                                                                                    // For debugging purposes
-	_ "github.com/kkirsche/go-nessus/Godeps/_workspace/src/github.com/mxk/go-sqlite/sqlite3" // SQLite3 Database Communications
-	"github.com/kkirsche/go-scp"                                                             // Used to retrieve files over SSH channel
-	"golang.org/x/crypto/ssh"                                                                // For SSH client connections
-	"log"                                                                                    // For logging
-	"os"                                                                                     // For retrieving the PID
-	"regexp"                                                                                 // To determine all files in a path using Globs
-	"runtime"                                                                                // For retrieving the current OS runtime (e.g. Linux, Windows or Darwin)
-	"strings"                                                                                // To split strings on newlines
+	"fmt"                        // For debugging purposes
+	"github.com/kkirsche/go-scp" // Used to retrieve files over SSH channel
+	"golang.org/x/crypto/ssh"    // For SSH client connections
+	"log"                        // For logging
+	"os"                         // For retrieving the PID
+	"regexp"                     // To determine all files in a path using Globs
+	"runtime"                    // For retrieving the current OS runtime (e.g. Linux, Windows or Darwin)
+	"strings"                    // To split strings on newlines
 )
 
 // Construct file locations of of scanner resources based on the operating system.
@@ -125,11 +123,10 @@ func RetreieveLaunchedScanResults(fileLocations FileLocations, accessKey string,
 	nessus := MakeClient("localhost", "8834", accessKey, secretKey)
 	message := fmt.Sprintf("Connecting to SQLite3 database (%s)", sqlite_db)
 	log.Print("[INFO] ", message)
-	conn, err := sql.Open("sqlite3", sqlite_db)
-	CheckErr(err)
-	defer conn.Close()
+	db := ConnectToSqliteDatabase(sqlite_db)
+	defer db.Close()
 
-	rows, err := conn.Query("SELECT * FROM active_scans ORDER BY request_id DESC;")
+	rows, err := db.Query("SELECT * FROM active_scans ORDER BY request_id DESC;")
 	CheckErr(err)
 	defer rows.Close()
 	numRows := 0
