@@ -4,8 +4,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
-	"github.com/go-sql-driver/mysql"
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/kkirsche/go-nessus/Godeps/_workspace/src/github.com/go-sql-driver/mysql"
+	_ "github.com/kkirsche/go-nessus/Godeps/_workspace/src/github.com/mattn/go-sqlite3"
 	"io/ioutil"
 	"log"
 )

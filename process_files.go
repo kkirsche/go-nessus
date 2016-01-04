@@ -1,14 +1,14 @@
 package goNessus
 
 import (
-	"fmt"                        // For debugging purposes
-	"github.com/kkirsche/go-scp" // Used to retrieve files over SSH channel
-	"golang.org/x/crypto/ssh"    // For SSH client connections
-	"log"                        // For logging
-	"os"                         // For retrieving the PID
-	"regexp"                     // To determine all files in a path using Globs
-	"runtime"                    // For retrieving the current OS runtime (e.g. Linux, Windows or Darwin)
-	"strings"                    // To split strings on newlines
+	"fmt"                                                                            // For debugging purposes
+	"github.com/kkirsche/go-nessus/Godeps/_workspace/src/github.com/kkirsche/go-scp" // Used to retrieve files over SSH channel
+	"github.com/kkirsche/go-nessus/Godeps/_workspace/src/golang.org/x/crypto/ssh"    // For SSH client connections
+	"log"                                                                            // For logging
+	"os"                                                                             // For retrieving the PID
+	"regexp"                                                                         // To determine all files in a path using Globs
+	"runtime"                                                                        // For retrieving the current OS runtime (e.g. Linux, Windows or Darwin)
+	"strings"                                                                        // To split strings on newlines
 )
 
 // Construct file locations of of scanner resources based on the operating system.

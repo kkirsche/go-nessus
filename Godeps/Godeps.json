@@ -1,11 +1,33 @@
 {
 	"ImportPath": "github.com/kkirsche/go-nessus",
-	"GoVersion": "go1.5.1",
+	"GoVersion": "go1.5.2",
 	"Deps": [
+		{
+			"ImportPath": "github.com/go-sql-driver/mysql",
+			"Comment": "v1.2-125-gd512f20",
+			"Rev": "d512f204a577a4ab037a1816604c48c9c13210be"
+		},
+		{
+			"ImportPath": "github.com/kkirsche/go-scp",
+			"Rev": "4ea9e14b7b2b677c7ee738ef76857c7d0af7520e"
+		},
+		{
+			"ImportPath": "github.com/mattn/go-sqlite3",
+			"Comment": "v1.1.0-30-g5510da3",
+			"Rev": "5510da399572b4962c020184bb291120c0a412e2"
+		},
 		{
 			"ImportPath": "github.com/parnurzeal/gorequest",
 			"Comment": "v0.2.11",
 			"Rev": "8fe8e16b3c50b6cc37399ee385b15f62a20bf584"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/curve25519",
+			"Rev": "beef0f4390813b96e8e68fd78570396d0f4751fc"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/ssh",
+			"Rev": "beef0f4390813b96e8e68fd78570396d0f4751fc"
 		},
 		{
 			"ImportPath": "golang.org/x/net/publicsuffix",
